@@ -20,6 +20,10 @@
   <!-- ホーム -->
   <section id="screen-home" class="screen">
     <h1 class="app-title">麻雀成績</h1>
+    <div id="update-banner" class="card update" hidden>
+      <p>新しいバージョンがあります</p>
+      <button class="btn btn-primary" data-action="apply-update">更新する</button>
+    </div>
     <div id="resume-banner" class="card resume" hidden>
       <p class="resume-title">進行中のセッションがあります</p>
       <p id="resume-info" class="muted"></p>
@@ -29,6 +33,7 @@
       <button class="btn btn-huge btn-primary" data-action="go-input">成績入力</button>
       <button class="btn btn-huge" data-action="go-review">成績確認</button>
     </div>
+    <button id="home-backup" class="home-backup" data-action="go-settings"></button>
   </section>
 
   <!-- 対局タイプ選択 -->
@@ -37,8 +42,16 @@
     <label class="field"><span>日付</span><input type="date" id="type-date"></label>
     <div class="type-buttons">
       <button class="btn btn-huge btn-primary" data-type="set">セット</button>
-      <button class="btn btn-huge" data-type="onRateFree" disabled>オンレートフリー<small>準備中</small></button>
+      <button class="btn btn-huge btn-primary" data-type="onRateFree">オンレートフリー</button>
       <button class="btn btn-huge btn-primary" data-type="noRateFree">ノーレートフリー</button>
+    </div>
+  </section>
+
+  <!-- 店選択（オンレート） -->
+  <section id="screen-shop" class="screen" hidden>
+    <header class="bar"><button class="btn-back" data-action="back-type">‹ 戻る</button><h2>店を選択</h2><span></span></header>
+    <div class="type-buttons">
+      <button class="btn btn-huge btn-primary" data-shop="marchao">マーチャオ</button>
     </div>
   </section>
 
@@ -46,13 +59,9 @@
   <section id="screen-input" class="screen" hidden>
     <header class="bar"><button class="btn-back" data-action="home">‹ ホーム</button><h2 id="input-title"></h2><span id="sync-badge" class="sync-badge"></span></header>
     <div class="summary" id="input-summary"></div>
-    <div class="field"><span>素点</span>
-      <div class="score-row">
-        <button type="button" class="btn btn-sign" id="sign-btn" data-action="toggle-sign">＋</button>
-        <input id="score-input" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="40000">
-        <span class="unit">点</span>
-      </div>
-    </div>
+    <div class="num-display"><span class="nd-label" id="score-label">素点</span><span class="nd-value" id="score-value"></span><span class="unit" id="score-unit">点</span></div>
+    <p class="preview" id="score-preview"></p>
+    <div class="keypad" id="score-keypad"></div>
     <div class="field"><span>順位</span>
       <div class="rank-buttons" id="rank-buttons"></div>
     </div>
@@ -61,16 +70,14 @@
     <div id="game-list" class="game-list"></div>
   </section>
 
-  <!-- 場代入力 -->
-  <section id="screen-fee" class="screen" hidden>
-    <header class="bar"><button class="btn-back" data-action="back-input">‹ 入力へ</button><h2>場代入力</h2><span></span></header>
-    <div class="field"><span>場代（麻雀にかかったお金）</span>
-      <div class="score-row">
-        <input id="fee-input" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="0">
-        <span class="unit">円</span>
-      </div>
-    </div>
-    <button class="btn btn-big btn-primary" data-action="confirm-fee">確認</button>
+  <!-- 金額入力（場代・持ちチップ・追加費用） -->
+  <section id="screen-amount" class="screen" hidden>
+    <header class="bar"><button class="btn-back" data-action="amount-back">‹ 戻る</button><h2 id="amount-title"></h2><span></span></header>
+    <p class="muted small" id="amount-note"></p>
+    <div class="num-display"><span class="nd-label" id="amount-label"></span><span class="nd-value" id="amount-value"></span><span class="unit">円</span></div>
+    <p class="preview" id="amount-preview"></p>
+    <div class="keypad" id="amount-keypad"></div>
+    <button class="btn btn-big btn-primary" data-action="amount-confirm">確認</button>
     <button id="discard-btn" class="btn btn-outline-danger" data-action="discard-session" hidden>記録せずに破棄</button>
   </section>
 
@@ -78,7 +85,7 @@
   <section id="screen-result" class="screen" hidden>
     <div class="result-card">
       <p id="result-text"></p>
-      <p id="result-sub" class="muted"></p>
+      <div id="result-sub" class="result-sub"></div>
     </div>
     <button class="btn btn-big btn-primary" data-action="home">確認</button>
   </section>
@@ -124,6 +131,11 @@
   </div>
 </div>
 <div id="toast" class="toast"></div>
+<div id="error-bar" class="error-bar" hidden>
+  <p>エラーが発生しました。入力済みのデータは保存されています。</p>
+  <p id="error-detail" class="small"></p>
+  <button class="btn btn-primary" onclick="location.reload()">再読み込み</button>
+</div>
 
 <script src="app.js"></script>
 </body>

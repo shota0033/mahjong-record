@@ -1,7 +1,7 @@
 'use strict';
 
 // sw.js の VERSION と必ず揃える（テストで確認している）
-const APP_VERSION = '1.2.0';
+const APP_VERSION = '1.2.2';
 const DATA_VERSION = 1;
 const DATA_KEY = 'mjr.data.v1';
 const DATA_PREV_KEY = 'mjr.data.v1.prev';
@@ -399,21 +399,37 @@ function toast(msg) {
 }
 
 // ---------- keypad ----------
-function createKeypad(el, { maxDigits, onChange }) {
-  const state = { digits: '', negative: false, allowNegative: true };
-  const keys = ['7', '8', '9', 'back', '4', '5', '6', 'clear', '1', '2', '3', 'sign', '0', '00'];
+// mode:
+//   hundreds … 1キー＝100単位（素点・半荘収支・持ちチップ）。表示の下2桁「00」は固定
+//   yen      … 1円単位（場代・追加費用）
+// allowNegative: ±キーを出すか / defaultZero: 未入力を0として扱うか
+function createKeypad(el, onChange) {
+  const state = { digits: '', negative: false, cfg: { mode: 'hundreds', allowNegative: true, defaultZero: false } };
   const labels = { back: '⌫', clear: 'C', sign: '±' };
   const aria = { back: '1文字消す', clear: '全部消す', sign: 'プラスマイナス切替' };
-  el.innerHTML = keys.map(k => {
-    const cls = ['btn', 'key'];
-    if (k === '0' || k === '00') cls.push('wide');
-    if (labels[k]) cls.push('fn');
-    return `<button type="button" class="${cls.join(' ')}" data-key="${k}" aria-label="${aria[k] || k}">${labels[k] || k}</button>`;
-  }).join('');
-  const signKey = $('[data-key="sign"]', el);
+
+  function layout(cfg) {
+    const top = ['7', '8', '9', 'back', '4', '5', '6', 'clear', '1', '2', '3'];
+    if (cfg.mode === 'hundreds') {
+      return cfg.allowNegative ? [...top, 'sign', '0:4'] : [...top, '0'];
+    }
+    return [...top, cfg.allowNegative ? 'sign' : 'blank', '0:2', '00:2'];
+  }
+  function render() {
+    el.innerHTML = layout(state.cfg).map(item => {
+      const [k, span] = item.split(':');
+      if (k === 'blank') return '<span></span>';
+      const cls = ['btn', 'key'];
+      if (span) cls.push('span' + span);
+      if (labels[k]) cls.push('fn');
+      if (k === 'sign' && state.negative) cls.push('sign-on');
+      return `<button type="button" class="${cls.join(' ')}" data-key="${k}" aria-label="${aria[k] || k}">${labels[k] || k}</button>`;
+    }).join('');
+  }
+  const maxDigits = () => (state.cfg.mode === 'hundreds' ? 5 : 7);
   const update = () => {
-    signKey.classList.toggle('sign-on', state.negative);
-    signKey.classList.toggle('invisible', !state.allowNegative);
+    const signKey = $('[data-key="sign"]', el);
+    if (signKey) signKey.classList.toggle('sign-on', state.negative);
     onChange();
   };
   el.addEventListener('click', e => {
@@ -422,38 +438,46 @@ function createKeypad(el, { maxDigits, onChange }) {
     const k = b.dataset.key;
     if (k === 'back') state.digits = state.digits.slice(0, -1);
     else if (k === 'clear') { state.digits = ''; state.negative = false; }
-    else if (k === 'sign') { if (state.allowNegative) state.negative = !state.negative; }
+    else if (k === 'sign') state.negative = !state.negative;
     else {
       const next = (state.digits + k).replace(/^0+(?=\d)/, '');
-      if (next.length > maxDigits) return;
+      if (next.length > maxDigits()) return;
       state.digits = next;
     }
     update();
   });
-  return {
+
+  const pad = {
     value() {
-      if (state.digits === '') return null;
-      const v = parseInt(state.digits, 10);
+      if (state.digits === '') return state.cfg.defaultZero ? 0 : null;
+      let v = parseInt(state.digits, 10);
+      if (state.cfg.mode === 'hundreds') v *= 100;
       return state.negative && v !== 0 ? -v : v;
     },
-    isNegative() { return state.negative; },
-    reset(allowNegative = state.allowNegative) {
+    // 表示欄の中身を描画する（高さが変わらないよう常に1行のテキスト）
+    renderTo(target) {
+      const minus = state.negative ? '−' : '';
+      const v = pad.value();
+      target.className = 'nd-value' + (state.negative ? ' minus' : '');
+      if (state.cfg.mode === 'hundreds') {
+        const body = state.digits === '' ? '' : fmtNum(Math.abs(v)).slice(0, -2);
+        target.innerHTML = v === 0 ? '0' : `${minus}${body}<span class="fixed">00</span>`;
+        if (state.digits === '') target.classList.add('empty');
+      } else {
+        target.textContent = minus + (v === null ? '0' : fmtNum(Math.abs(v)));
+        if (state.digits === '' && !state.cfg.defaultZero) target.classList.add('empty');
+      }
+    },
+    reset(cfg) {
+      if (cfg) state.cfg = Object.assign({ mode: 'hundreds', allowNegative: false, defaultZero: false }, cfg);
       state.digits = '';
       state.negative = false;
-      state.allowNegative = allowNegative;
+      render();
       update();
     },
   };
-}
-
-function renderNumDisplay(el, value, negative) {
-  if (value === null) {
-    el.textContent = negative ? '−' : '0';
-    el.className = 'nd-value' + (negative ? ' minus' : ' empty');
-    return;
-  }
-  el.textContent = (value < 0 ? '−' : '') + fmtNum(Math.abs(value));
-  el.className = 'nd-value' + (value < 0 ? ' minus' : '');
+  render();
+  return pad;
 }
 
 // ---------- screens ----------
@@ -480,7 +504,7 @@ function renderHome() {
 }
 
 // ----- 金額入力画面（場代・持ちチップ・追加費用で共用） -----
-// cfg: { title, note, label, allowNegative, step100, back, confirmText(v), onConfirm(v), showDiscard }
+// cfg: { title, note, label, allowNegative, step100（1キー＝100円）, defaultZero, back, confirmText(v), onConfirm(v), showDiscard }
 let amountCfg = null;
 let amountPad;
 
@@ -490,28 +514,19 @@ function openAmountScreen(cfg) {
   $('#amount-note').textContent = cfg.note || '';
   $('#amount-label').textContent = cfg.label;
   $('#discard-btn').hidden = !cfg.showDiscard;
-  amountPad.reset(!!cfg.allowNegative);
+  amountPad.reset({ mode: cfg.step100 ? 'hundreds' : 'yen', allowNegative: !!cfg.allowNegative, defaultZero: !!cfg.defaultZero });
   show('amount');
 }
 
 function renderAmountPreview() {
-  const v = amountPad.value();
-  renderNumDisplay($('#amount-value'), v, amountPad.isNegative());
-  const el = $('#amount-preview');
-  el.className = 'preview';
-  el.textContent = '';
-  if (v !== null && amountCfg && amountCfg.step100 && v % 100 !== 0) {
-    el.textContent = '100円単位で入力してください（下2桁は00）';
-    el.classList.add('error');
-  }
+  amountPad.renderTo($('#amount-value'));
 }
 
 async function amountConfirm() {
   const cfg = amountCfg;
   if (!cfg) return;
   const v = amountPad.value();
-  if (v === null) { toast(cfg.allowNegative ? '金額を入力してください（なければ0）' : '金額を入力してください'); return; }
-  if (cfg.step100 && v % 100 !== 0) { toast('100円単位で入力してください'); return; }
+  if (v === null) { toast('金額を入力してください'); return; }
   const ok = await dialog(cfg.confirmText(v), [
     { label: 'キャンセル', value: false },
     { label: '確定', value: true, cls: 'btn-primary' },
@@ -532,7 +547,7 @@ function inputIsOnRate() {
 function resetForm() {
   form.rank = null;
   form.tieMode = false;
-  scorePad.reset(true);
+  scorePad.reset({ mode: 'hundreds', allowNegative: true });
   renderRankButtons();
 }
 
@@ -554,15 +569,10 @@ function renderRankButtons() {
 function renderScorePreview() {
   const onRate = inputIsOnRate();
   const v = scorePad.value();
-  renderNumDisplay($('#score-value'), v, scorePad.isNegative());
+  scorePad.renderTo($('#score-value'));
   const el = $('#score-preview');
   el.className = 'preview';
-  if (v === null) { el.textContent = onRate ? '下のキーで半荘収支を入力' : '下のキーで素点を入力'; return; }
-  if (v % 100 !== 0) {
-    el.textContent = onRate ? '100円単位で入力してください（下2桁は00）' : '下2桁は00になります（100点単位）';
-    el.classList.add('error');
-    return;
-  }
+  if (v === null) { el.textContent = onRate ? '下のキーで半荘収支を入力（100円単位）' : '下のキーで素点を入力（100点単位）'; return; }
   if (form.rank === null) { el.textContent = onRate ? '順位を選ぶと実収支を表示' : '順位を選ぶとポイントを表示'; return; }
   if (onRate) {
     const net = gameNet(newOnRateGame(activeSession(), form.rank, v));
@@ -781,6 +791,7 @@ function openExtraCostScreen(s) {
     note: '追加でかかったお金を入力してください（クーポンなどで減額された場合はマイナスで入力）',
     label: '追加費用',
     allowNegative: true,
+    defaultZero: true,
     back: () => openChipEndScreen(s),
     confirmText: v => `追加でかかったお金：${v < 0 ? fmtYenSigned(v) : fmtYen(v)}`,
     onConfirm: v => finishSession(s, { extraCost: v }),
@@ -1108,10 +1119,17 @@ async function editSession(t) {
 
 // ----- Data -----
 const statsFilter = { period: 'all', type: 'all' };
+// Data画面のタイプ絞り込み。noRate は「お金を賭けていないもの」（ノーレートフリー + セット）のまとめ
+const TYPE_FILTERS = {
+  all: () => true,
+  onRateFree: s => s.type === 'onRateFree',
+  noRateFree: s => s.type === 'noRateFree',
+  set: s => s.type === 'set',
+  noRate: s => s.type !== 'onRateFree',
+};
 
 function periodSessions() {
   const today = todayStr();
-  if (statsFilter.period === 'month') return data.sessions.filter(s => s.date.startsWith(today.slice(0, 7)));
   if (statsFilter.period === '30d') {
     const d = new Date();
     d.setDate(d.getDate() - 29);
@@ -1226,10 +1244,13 @@ function typeTable(sessions) {
 function renderStats() {
   const seg = (action, cur, opts) =>
     `<div class="seg">${opts.map(([v, l]) => `<button class="${cur === v ? 'active' : ''}" data-action="${action}" data-value="${v}">${l}</button>`).join('')}</div>`;
-  let html = seg('set-period', statsFilter.period, [['month', '今月'], ['30d', '直近30日'], ['all', '全期間']]) +
-    seg('set-ftype', statsFilter.type, [['all', '全タイプ'], ['set', 'セット'], ['noRateFree', 'ノーレート'], ['onRateFree', 'オンレート']]);
+  let html = seg('set-period', statsFilter.period, [['30d', '直近30日'], ['all', '全期間']]) +
+    `<div class="seg seg-types">${[
+      ['all', '全タイプ'], ['onRateFree', 'オンレート'],
+      ['noRateFree', 'ノーレート'], ['set', 'セット'], ['noRate', 'ノーレート+セット'],
+    ].map(([v, l]) => `<button class="${statsFilter.type === v ? 'active' : ''}" data-action="set-ftype" data-value="${v}">${l}</button>`).join('')}</div>`;
   const pSessions = periodSessions();
-  const sessions = statsFilter.type === 'all' ? pSessions : pSessions.filter(s => s.type === statsFilter.type);
+  const sessions = pSessions.filter(TYPE_FILTERS[statsFilter.type]);
   const st = computeStats(sessions);
   if (!st.n) {
     $('#tab-stats').innerHTML = html + '<p class="empty">この条件の記録はありません</p>';
@@ -1482,8 +1503,8 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ---------- init ----------
-scorePad = createKeypad($('#score-keypad'), { maxDigits: 6, onChange: renderScorePreview });
-amountPad = createKeypad($('#amount-keypad'), { maxDigits: 7, onChange: renderAmountPreview });
+scorePad = createKeypad($('#score-keypad'), renderScorePreview);
+amountPad = createKeypad($('#amount-keypad'), renderAmountPreview);
 $('#app-version').textContent = APP_VERSION;
 resetForm();
 show('home');

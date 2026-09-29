@@ -1,5 +1,5 @@
 // アプリを更新したら VERSION を上げる（app.js の APP_VERSION と揃える）
-const VERSION = '1.2.0';
+const VERSION = '1.2.2';
 const CACHE_NAME = 'mahjong-record-' + VERSION;
 const ASSETS = [
   './',

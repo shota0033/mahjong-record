@@ -153,6 +153,10 @@ button.game-row:active { background: var(--surface2); }
 .tabs button.active, .seg button.active { background: var(--surface2); color: var(--text); }
 .seg { display: flex; background: var(--surface); border-radius: 12px; padding: 4px; gap: 4px; }
 .seg button { flex: 1; font-size: 14px; padding: 8px 2px; }
+/* タイプ絞り込み: 1段目「全タイプ・オンレート」、2段目「ノーレート・セット・ノーレート+セット」 */
+.seg-types { display: grid; grid-template-columns: repeat(6, 1fr); }
+.seg-types button { grid-column: span 2; font-size: 13px; white-space: nowrap; }
+.seg-types button:nth-child(-n+2) { grid-column: span 3; }
 
 /* stats */
 .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -208,21 +212,37 @@ table.types th { color: var(--muted); font-weight: 400; font-size: 12px; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* number display + keypad */
+/* 高さを固定して、±や入力内容で表示欄の大きさが変わらないようにする */
 .num-display {
-  display: flex; align-items: baseline; gap: 8px;
+  display: flex; align-items: center; gap: 8px;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 8px 14px; min-height: 64px;
+  padding: 0 14px; height: 44px; overflow: hidden;
 }
-.nd-label { font-size: 14px; color: var(--muted); align-self: center; }
-.nd-value { flex: 1; text-align: right; font-size: 36px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.nd-label { font-size: 14px; color: var(--muted); flex: none; }
+.nd-value {
+  flex: 1; text-align: right; font-size: 30px; line-height: 1; font-weight: 800;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.nd-value .fixed { opacity: .45; }
 .nd-value.empty { color: var(--line); }
+.nd-value.empty .fixed { opacity: 1; }
 .nd-value.minus { color: var(--minus); }
-.preview { font-size: 15px; text-align: right; min-height: 1.5em; margin-top: -8px; color: var(--muted); }
+.preview { font-size: 15px; text-align: right; min-height: 1.5em; margin-top: -6px; color: var(--muted); }
 .preview.error { color: var(--minus); font-weight: 700; }
 .preview b { font-size: 18px; }
 .keypad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-.keypad .key { min-height: 54px; font-size: 24px; padding: 0; border-radius: 12px; }
-.keypad .key.wide { grid-column: span 2; }
+.keypad .key { min-height: 50px; font-size: 24px; padding: 0; border-radius: 12px; }
+.keypad .key.span2 { grid-column: span 2; }
+.keypad .key.span4 { grid-column: span 4; }
+
+/* 入力画面は「終了」までスクロールなしで収める */
+#screen-input { gap: 12px; }
+#screen-input .rank-btn { min-height: 62px; font-size: 26px; }
+#screen-input .rank-buttons.tie .rank-btn { font-size: 19px; }
+#screen-input .rank-buttons .tie-toggle { font-size: 16px; }
+#screen-input .btn-big { min-height: 54px; }
+#screen-input .field { gap: 4px; }
+#screen-input .summary { padding: 8px 14px; }
 .keypad .key.fn { font-size: 18px; color: var(--accent); }
 .keypad .key.sign-on { background: var(--danger); border-color: var(--danger); color: #fff; }
 

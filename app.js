@@ -1,7 +1,7 @@
 'use strict';
 
 // sw.js の VERSION と必ず揃える（テストで確認している）
-const APP_VERSION = '1.2.2';
+const APP_VERSION = '1.3.0';
 const DATA_VERSION = 1;
 const DATA_KEY = 'mjr.data.v1';
 const DATA_PREV_KEY = 'mjr.data.v1.prev';
@@ -1181,8 +1181,9 @@ function statBox(label, value) {
 
 function distHtml(st) {
   const pct = v => (v / st.n * 100).toFixed(1) + '%';
+  const max = Math.max(...st.dist) || 1; // 最多の着順を棒の100%にする
   const rows = st.dist.map((c, i) =>
-    `<div class="dist-row"><span>${i + 1}着</span><div class="dist-bar"><div style="width:${c / st.n * 100}%"></div></div><span class="num">${fmtCount(c)}回 ${pct(c)}</span></div>`
+    `<div class="dist-row"><span>${i + 1}着</span><div class="dist-bar"><div style="width:${c / max * 100}%"></div></div><span class="num">${fmtCount(c)}回 ${pct(c)}</span></div>`
   ).join('');
   return `<div class="dist">${rows}
     <div class="dist-foot"><span>連対率 ${pct(st.dist[0] + st.dist[1])}</span><span>ラス回避率 ${pct(st.n - st.dist[3])}</span></div>

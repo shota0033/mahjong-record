@@ -1,0 +1,10 @@
+{
+  "name": "mahjong-record",
+  "private": true,
+  "scripts": {
+    "test": "node tests/app.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.3"
+  }
+}

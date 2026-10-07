@@ -279,3 +279,292 @@ table.types th { color: var(--muted); font-weight: 400; font-size: 12px; }
 .keypad .key.invisible { visibility: hidden; }
 .s-sub { flex-wrap: wrap; }
 .rank-buttons.no-tie { grid-template-columns: repeat(4, 1fr); }
+
+/* =========================================================
+   デザイン: HUD・SF計器風（v1.3.0 で採用）
+   ここから下は、上の基本スタイルの見た目を上書きする。サイズ・余白は上のまま
+
+   色は「背景・メイン・アクセント」の3色だけを決め、残りはそこから計算する
+   （theme.js が設定タブの「色の設定」で選んだ3色を当てる）
+   ========================================================= */
+
+:root {
+  /* ---- 決める色（3色） ---- */
+  --bg: rgb(20, 20, 20);         /* 背景（theme.js が動かないときの初期色） */
+  --primary: rgb(54, 52, 255);   /* メイン: 文字・枠・数値 */
+  --accent: rgb(185, 48, 48);    /* アクセント: 選択中・警告・目立たせたいところ */
+
+  /* ---- 収支・ポイントの数値は、プラスもマイナスもアクセント色で表示する ---- */
+  --plus: var(--accent);
+  --minus: var(--accent);
+  /* ---- 終了・削除・入力ミスもアクセント色（赤の固定色は使わない） ---- */
+  --danger: var(--accent);
+
+  /* ---- 3色から計算する色 ---- */
+  --text: var(--primary);
+  --muted: color-mix(in srgb, var(--primary) 60%, var(--bg));
+  --line: color-mix(in srgb, var(--primary) 34%, var(--bg));
+  --surface: color-mix(in srgb, var(--primary) 5%, var(--bg));
+  --surface2: color-mix(in srgb, var(--primary) 10%, var(--bg));
+  --deep: color-mix(in srgb, var(--primary) 3%, var(--bg));
+  --glow: color-mix(in srgb, var(--primary) 45%, transparent);
+  --tint: color-mix(in srgb, var(--primary) 12%, transparent);
+  --accent-tint: color-mix(in srgb, var(--accent) 10%, transparent);
+  --danger-tint: color-mix(in srgb, var(--danger) 10%, transparent);
+  /* 影・走査線用: 背景を暗くした色（黒背景なら黒、白背景なら薄いグレー） */
+  --shade: color-mix(in srgb, var(--bg) 85%, black);
+
+  --radius: 0;
+  --cut: 10px;
+}
+
+/* 明るい背景のとき（theme.js が背景の明るさを見て data-bg="light" を付ける）
+   白地では薄い色が読みにくく、発光もにじむので、濃いめ・控えめにする */
+:root[data-bg="light"] {
+  --muted: color-mix(in srgb, var(--primary) 78%, var(--bg));
+  --line: color-mix(in srgb, var(--primary) 45%, var(--bg));
+  --glow: color-mix(in srgb, var(--primary) 20%, transparent);
+}
+
+/* 背景: うっすら方眼 + 周辺減光 */
+html, body { background: var(--bg); }
+body {
+  background-image:
+    radial-gradient(ellipse at 50% 30%, transparent 40%, color-mix(in srgb, var(--shade) 60%, transparent) 100%),
+    linear-gradient(color-mix(in srgb, var(--primary) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--primary) 5%, transparent) 1px, transparent 1px);
+  background-size: 100% 100%, 24px 24px, 24px 24px;
+  background-attachment: fixed;
+}
+/* 走査線（固定・動かない）。背景を少し暗くした色で引くので、明るい背景でも主張しすぎない */
+body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 500;
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--shade) 14%, transparent) 0 1px, transparent 1px 3px);
+}
+
+/* ---------- 角を斜めに切ったパネル ----------
+   左上と右下を切り落とし、切り口にも枠線を引く */
+.btn, .card, .num-display, .summary, .stat, .dist, .chart, .result-card,
+.modal-box, .tabs, .seg, input, select, .home-backup.warn, .warn-list, .error-bar, table.types {
+  --edge: var(--line);
+  --d1: calc(var(--cut) * .7071 - .5px);
+  --d2: calc(var(--cut) * .7071 + .9px);
+  border-radius: 0;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+  /* style.css の background 指定で消されないよう !important */
+  background-image:
+    linear-gradient(135deg, transparent var(--d1), var(--edge) var(--d1), var(--edge) var(--d2), transparent var(--d2)),
+    linear-gradient(315deg, transparent var(--d1), var(--edge) var(--d1), var(--edge) var(--d2), transparent var(--d2)) !important;
+  background-origin: border-box;
+  border-color: var(--edge);
+}
+.keypad .key, .rank-btn, .s-actions .btn, .tag, .undo-btn { --cut: 6px; }
+.tabs button, .seg button, .keypad .key { border-radius: 0; }
+
+/* ---------- 画面切り替え ---------- */
+.screen { animation: hud-in .22s ease-out; }
+@keyframes hud-in {
+  from { opacity: 0; transform: translateY(6px); filter: brightness(1.8); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+/* ---------- ホーム ---------- */
+.app-title {
+  color: var(--primary); letter-spacing: .4em; font-weight: 700;
+  text-shadow: 0 0 12px var(--glow);
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+}
+.app-title::before, .app-title::after {
+  font-size: 10px; letter-spacing: .35em; font-weight: 400; color: var(--muted); text-shadow: none;
+}
+.app-title::before { content: "◢ MAHJONG SCORE SYSTEM ◣"; }
+.app-title::after { content: "━━━━━━━━━━━━━━━━━━━━"; color: var(--line); }
+
+/* ---------- ヘッダー ---------- */
+.bar { border-bottom: 1px solid var(--line); position: relative; }
+.bar::after {
+  content: ""; position: absolute; left: 0; bottom: -1px; width: 40px; height: 2px;
+  background: var(--primary); box-shadow: 0 0 8px var(--glow);
+}
+.bar h2 { letter-spacing: .12em; font-weight: 600; }
+.bar h2::before { content: "▸ "; }
+.btn-back { color: var(--primary); letter-spacing: .05em; }
+.sync-badge.ok { color: var(--plus); }
+.sync-badge.ng { color: var(--accent); }
+
+/* ---------- ボタン ---------- */
+.btn {
+  --edge: var(--line);
+  background-color: var(--surface);
+  color: var(--text);
+  letter-spacing: .06em;
+  transition: transform .05s, background-color .15s, box-shadow .15s;
+}
+.btn:active {
+  --edge: var(--primary);
+  background-color: var(--surface2);
+  box-shadow: inset 0 0 18px var(--glow);
+}
+.btn-primary {
+  --edge: var(--primary);
+  background-color: var(--tint);
+  color: var(--primary);
+  text-shadow: 0 0 8px var(--glow);
+  box-shadow: inset 0 0 14px var(--tint);
+}
+.btn-primary:active { background-color: color-mix(in srgb, var(--primary) 30%, transparent); }
+.btn-outline-danger { --edge: var(--danger); background-color: var(--danger-tint); color: var(--danger); }
+.btn.danger { --edge: var(--danger); background-color: color-mix(in srgb, var(--danger) 22%, transparent); color: var(--danger); }
+/* 入力ミスのメッセージ */
+.error, .preview.error { color: var(--danger); }
+
+/* ホームの2つのボタンは同じ見た目・同じ押した感じにする */
+.home-buttons .btn {
+  --edge: var(--primary);
+  background-color: var(--tint);
+  color: var(--primary);
+  text-shadow: 0 0 8px var(--glow);
+  box-shadow: inset 0 0 14px var(--tint);
+}
+.home-buttons .btn:active { background-color: color-mix(in srgb, var(--primary) 30%, transparent); box-shadow: inset 0 0 18px var(--glow); }
+.btn-huge { letter-spacing: .25em; }
+.btn small { color: var(--muted); }
+.btn-primary small { color: var(--accent); text-shadow: none; }
+
+/* ホームの大ボタン: 左端に計器っぽい目盛り */
+.home-buttons .btn, .type-buttons .btn { position: relative; }
+.home-buttons .btn::before, .type-buttons .btn::before {
+  content: ""; position: absolute; left: 14px; top: 50%; width: 4px; height: 36%;
+  transform: translateY(-50%);
+  background: repeating-linear-gradient(0deg, currentColor 0 2px, transparent 2px 5px);
+  opacity: .6;
+}
+
+/* ---------- 入力欄 ---------- */
+input, select { background-color: var(--surface); color: var(--text); }
+input:focus, select:focus { outline: none; --edge: var(--primary); box-shadow: inset 0 0 10px var(--tint); }
+.field > span { letter-spacing: .08em; }
+
+/* ---------- 数値表示（計器） ---------- */
+.num-display {
+  --edge: var(--primary);
+  background-color: var(--deep);
+  box-shadow: inset 0 0 16px var(--tint);
+}
+.nd-label { color: var(--primary); letter-spacing: .1em; }
+.nd-label::before { content: "▸ "; }
+.nd-value { color: var(--primary); text-shadow: 0 0 10px var(--glow); letter-spacing: .04em; }
+.nd-value.empty { color: var(--line); text-shadow: none; }
+/* 自動で付く「00」も、打った数字と同じ色で表示する（未入力のときは全体が薄いまま） */
+.nd-value .fixed { opacity: 1; }
+.nd-value.minus { color: var(--minus); text-shadow: 0 0 10px color-mix(in srgb, var(--minus) 50%, transparent); }
+.preview b { color: var(--text); }
+
+/* ---------- テンキー ---------- */
+.keypad .key { background-color: var(--surface); color: var(--text); font-weight: 500; }
+.keypad .key:active {
+  --edge: var(--primary);
+  background-color: color-mix(in srgb, var(--primary) 28%, transparent);
+  text-shadow: 0 0 10px var(--glow);
+}
+.keypad .key.fn { color: var(--primary); }
+.btn-sign.negative { --edge: var(--accent); background-color: var(--accent-tint); color: var(--accent); }
+.keypad .key.sign-on { --edge: var(--accent); background-color: var(--accent-tint); color: var(--accent); }
+
+/* ---------- 順位ボタン（選択中はアクセント） ---------- */
+.rank-btn.selected {
+  --edge: var(--accent);
+  background-color: var(--accent); color: var(--bg);
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, .35);
+}
+.rank-btn.selected small { color: var(--bg); }
+.rank-buttons .tie-toggle { color: var(--primary); }
+
+/* ---------- 集計バー・一覧 ---------- */
+.summary {
+  --edge: var(--line);
+  background-color: var(--surface); border: 1px solid var(--line);
+  font-variant-numeric: tabular-nums; letter-spacing: .03em;
+}
+/* 枠線の分だけ内側の余白を減らし、高さを style.css と同じに保つ */
+#screen-input .summary { padding: 7px 13px; }
+.game-row { border-bottom: 1px dashed var(--line); }
+.game-row .idx { color: var(--muted); }
+.game-row .score, .game-row .pt { color: var(--accent); }
+.game-row .idx::before { content: "#"; }
+button.game-row:active { background: var(--tint); }
+.undo-btn { border-radius: 0; color: var(--accent); border-color: var(--accent); }
+
+.card { background-color: var(--surface); }
+.card h3 { color: var(--primary); letter-spacing: .12em; font-size: 15px; }
+.card h3::before, #tab-stats h3::before { content: "◢ "; font-size: 11px; }
+#tab-stats h3 { color: var(--primary); font-size: 15px; }
+.resume { --edge: var(--accent); box-shadow: inset 0 0 20px var(--accent-tint); }
+.resume-title, .resume #resume-info { color: var(--accent); }
+.resume .btn-primary { --edge: var(--accent); background-color: var(--accent-tint); color: var(--accent); text-shadow: 0 0 8px var(--accent-tint); box-shadow: inset 0 0 14px var(--accent-tint); }
+.resume .btn-primary:active { background-color: color-mix(in srgb, var(--accent) 30%, transparent); }
+.update { --edge: var(--primary); }
+
+/* 記録一覧のタグ */
+.tag { border-radius: 0; letter-spacing: .05em; background-color: var(--surface2); border: 1px solid var(--line); color: var(--muted); }
+.tag-set { background-color: var(--tint); border-color: var(--primary); color: var(--primary); }
+.tag-noRateFree { background-color: var(--surface2); border-color: var(--muted); color: var(--text); }
+.tag-onRateFree { background-color: var(--accent-tint); border-color: var(--accent); color: var(--accent); }
+.tag-active { background-color: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+/* ---------- タブ・切り替え ---------- */
+.tabs, .seg { background-color: var(--surface); border: 1px solid var(--line); }
+.tabs button, .seg button { letter-spacing: .08em; color: var(--muted); }
+.tabs button.active, .seg button.active {
+  background: var(--tint); color: var(--primary);
+  box-shadow: inset 0 -2px 0 var(--primary);
+  text-shadow: 0 0 8px var(--glow);
+}
+
+/* ---------- Data ---------- */
+.stat { background-color: var(--surface); border: 1px solid var(--line); }
+.stat .label { letter-spacing: .1em; color: var(--muted); }
+.stat .value { color: var(--accent); }
+.stat .value small { color: var(--muted); }
+.dist, .chart { background-color: var(--surface); border: 1px solid var(--line); }
+.dist-bar { border-radius: 0; background: repeating-linear-gradient(90deg, var(--surface2) 0 6px, transparent 6px 8px); }
+.dist-bar > div {
+  background: repeating-linear-gradient(90deg, var(--accent) 0 6px, transparent 6px 8px) !important;
+  box-shadow: 0 0 6px var(--accent-tint);
+}
+.dist-row .num, .dist-foot { color: var(--muted); }
+.chart polyline { filter: drop-shadow(0 0 3px currentColor); }
+table.types { background-color: var(--surface); border: 1px solid var(--line); }
+table.types th { letter-spacing: .08em; color: var(--muted); }
+table.types td, table.types th { border-bottom: 1px dashed var(--line); }
+table.types td:not(:first-child) { color: var(--accent); }
+h3 { letter-spacing: .1em; }
+
+/* ---------- 結果 ---------- */
+.result-card {
+  --cut: 18px; --edge: var(--primary);
+  background-color: var(--deep); border: 1px solid var(--primary);
+  box-shadow: inset 0 0 40px var(--tint);
+}
+.result-card::before {
+  content: "◢ SESSION COMPLETE ◣"; font-size: 11px; letter-spacing: .35em; color: var(--primary);
+}
+#result-text .big { text-shadow: 0 0 16px currentColor; }
+.result-sub { color: var(--muted); }
+.result-sub .final { color: var(--primary); text-shadow: 0 0 10px var(--glow); }
+
+/* ---------- ダイアログ・通知 ---------- */
+.modal { background: color-mix(in srgb, var(--bg) 82%, transparent); }
+.modal-box { --cut: 16px; --edge: var(--primary); background-color: var(--deep); border-color: var(--primary); }
+.modal-msg { letter-spacing: .04em; }
+/* 3つ並んだとき「キャンセル」が折り返さないように */
+.modal-buttons .btn { letter-spacing: .02em; white-space: nowrap; padding-left: 6px; padding-right: 6px; }
+.toast {
+  border-radius: 0; background: var(--accent); color: var(--bg); letter-spacing: .06em;
+  width: max-content; /* 画面の半分の幅で折り返さないように */
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.warn-list { --edge: var(--accent); border-radius: 0; background-color: var(--accent-tint); color: var(--accent); }
+.home-backup { color: var(--muted); }
+.home-backup.warn { --edge: var(--accent); background-color: var(--accent-tint); color: var(--accent); }
+.error-bar { --edge: var(--danger); background-color: color-mix(in srgb, var(--danger) 12%, var(--bg)); }

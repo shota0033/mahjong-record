@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b1f18">
+<meta name="theme-color" content="#141414">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,6 +12,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
 <title>麻雀成績</title>
 </head>
 <body>
@@ -107,6 +108,11 @@
         <label class="btn" for="import-file">JSONをインポート</label>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
         <p id="persist-status" class="muted small"></p>
+      </div>
+      <div class="card">
+        <h3>色の設定</h3>
+        <p class="muted small">背景・メイン・アクセントの3色を変えられます。</p>
+        <button class="btn" id="theme-open">色を変える</button>
       </div>
       <div class="card">
         <h3>クラウド自動バックアップ</h3>
